@@ -9,6 +9,7 @@ import System.Environment
 import Control.Monad -- For `liftM` which unravels the value inside the monad
 
 
+instance Show LispVal where show = showVal
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
@@ -16,7 +17,7 @@ data LispVal = Atom String
              | String String
              | Character Char
              | Float Float
-             | Bool Bool deriving (Show)
+             | Bool Bool
 
 
 symbol :: Parser Char
@@ -150,6 +151,23 @@ parseExpr = parseAtom
           list <- try parseList <|> parseDottedList
           char ')'
           return list
+
+
+showVal :: LispVal -> String
+showVal (String content) = "\"" ++ content ++ "\""
+showVal (Character char) = show char
+showVal (Atom name) = name
+showVal (Number number) = show number
+showVal (Float number) = show number
+showVal (Bool True) = "#t"
+showVal (Bool False) = "#f"
+showVal (List items) = "(" ++ unwordsList items ++ ")"
+showVal (DottedList head tail) =
+  "(" ++ unwordsList head ++ ")" -- " . " ++ showVal tail ")"
+
+-- Helper function for printing a list
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
 
 
 readExpr :: String -> String
