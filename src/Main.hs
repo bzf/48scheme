@@ -115,16 +115,41 @@ parseBool = do
 
 parseCharacter :: Parser LispVal
 parseCharacter = do
-  value <- anyChar
-  return $ Character value
+  try $ string "#\\"
+  value <- try (string "newline" <|> string "space")
+           <|> do { x <- anyChar; notFollowedBy alphaNum; return [x] }
+  return $ Character $ case value of
+                         "space" -> ' '
+                         "newline" -> '\n'
+                         otherwise -> (value !! 0)
 
+
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList = do
+  head <- endBy parseExpr spaces
+  tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
-        <|> parseNumber
-        <|> parseCharacter
-        <|> parseBool
+        <|> try parseNumber
+        <|> try parseBool
+        <|> try parseCharacter
+        <|> parseQuoted
+        <|> do
+          char '('
+          list <- try parseList <|> parseDottedList
+          char ')'
+          return list
 
 
 readExpr :: String -> String
