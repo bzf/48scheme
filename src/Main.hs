@@ -211,14 +211,7 @@ numericBinop op params = Number $ foldl1 op $ map unpackNum params
 
 unpackNum :: LispVal -> Integer
 unpackNum (Number n) = n
-unpackNum (List [n]) = unpackNum n
-unpackNum (String n) =
-  let parsed = reads n :: [(Integer, String)] in
-      if null parsed
-         then 0
-         else fst $ parsed !! 0
 unpackNum _ = 0
-
 
 readExpr :: String -> LispVal
 readExpr input = case parse parseExpr "lisp" input of
