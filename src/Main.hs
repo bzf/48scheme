@@ -169,14 +169,21 @@ showVal (DottedList head tail) =
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
+-- This could probably be better as a case
+eval :: LispVal -> LispVal
+eval val@(String _) = val
+eval val@(Number _) = val
+eval val@(Bool _) = val
+eval (List [Atom "quote", val]) = val
+eval val@(List _) = val
 
-readExpr :: String -> String
-readExpr input = case parse (parseExpr) "list" input of
-  Left err -> "No match: " ++ show err
-  Right value -> "Found value: " ++ show value
+
+readExpr :: String -> LispVal
+readExpr input = case parse parseExpr "lisp" input of
+  Left err -> String $ "No match: " ++ show err
+  Right value -> value
 
 
 main :: IO ()
 main = do
-  (expr:_) <- getArgs
-  putStrLn $ readExpr expr
+  getArgs >>= print . eval . readExpr . head
