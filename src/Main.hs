@@ -1,6 +1,9 @@
 module Main where
 
 
+import Numeric
+import Data.Char
+
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 import Control.Monad -- For `liftM` which unravels the value inside the monad
@@ -15,7 +18,7 @@ data LispVal = Atom String
 
 
 symbol :: Parser Char
-symbol = oneOf "!#$%&*+-/:<=>?@^_~"
+symbol = oneOf "!$%&*+-/:<=>?@^_~"
 
 
 spaces :: Parser ()
@@ -50,15 +53,59 @@ parseAtom = do
   return $ case atom of
              "#t" -> Bool True
              "#f" -> Bool False
-             _ -> Atom atom
+             _    -> Atom atom
 
+binaryDigit :: Parser Char
+binaryDigit = oneOf "01"
+
+isBinaryDigit :: Char -> Bool
+isBinaryDigit c = (c == '0') || (c == '1')
+
+readBin :: ReadS Integer
+readBin = readInt 2 isBinaryDigit digitToInt
 
 parseNumber :: Parser LispVal
-parseNumber = liftM (Number . read) $ many1 digit
+parseNumber = parseDecimal
+           <|> parseDecimalWithPrefix
+           <|> parseHex
+           <|> parseOct
+           <|> parseBin
+
+parseDecimal :: Parser LispVal
+parseDecimal = many1 digit >>= (return . Number . read)
+
+parseDecimalWithPrefix :: Parser LispVal
+parseDecimalWithPrefix = do
+  try $ string "#d"
+  digits <- many1 digit
+  (return . Number . read) digits
+
+parseHex :: Parser LispVal
+parseHex = do
+  try $ string "#x"
+  digits <- many1 hexDigit
+  return $ Number (fst . head . readHex $ digits)
+
+parseOct :: Parser LispVal
+parseOct = do
+  try $ string "#o"
+  digits <- many1 hexDigit
+  return $ Number (fst . head . readOct $ digits)
+
+parseBin :: Parser LispVal
+parseBin = do
+  try $ string "#b"
+  digits <- many1 binaryDigit
+  return $ Number (fst . head . readBin $ digits)
+
+parseBool :: Parser LispVal
+parseBool = do
+  char '#'
+  (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
 
 parseExpr :: Parser LispVal
-parseExpr = parseString <|> parseAtom <|> parseNumber
+parseExpr = parseAtom <|> parseString <|> parseNumber <|> parseBool
 
 
 readExpr :: String -> String
