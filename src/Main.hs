@@ -14,6 +14,8 @@ data LispVal = Atom String
              | DottedList [LispVal] LispVal
              | Number Integer
              | String String
+             | Character Char
+             | Float Float
              | Bool Bool deriving (Show)
 
 
@@ -65,11 +67,19 @@ readBin :: ReadS Integer
 readBin = readInt 2 isBinaryDigit digitToInt
 
 parseNumber :: Parser LispVal
-parseNumber = parseDecimal
+parseNumber = try parseFloat
+           <|> parseDecimal
            <|> parseDecimalWithPrefix
            <|> parseHex
            <|> parseOct
            <|> parseBin
+
+parseFloat :: Parser LispVal
+parseFloat = do
+  first <- many1 digit
+  char '.'
+  second <- many1 digit
+  return $ Float (fst . head . readFloat $ first ++ "." ++ second)
 
 parseDecimal :: Parser LispVal
 parseDecimal = many1 digit >>= (return . Number . read)
@@ -103,9 +113,18 @@ parseBool = do
   char '#'
   (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
+parseCharacter :: Parser LispVal
+parseCharacter = do
+  value <- anyChar
+  return $ Character value
+
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom <|> parseString <|> parseNumber <|> parseBool
+parseExpr = parseAtom
+        <|> parseString
+        <|> parseNumber
+        <|> parseCharacter
+        <|> parseBool
 
 
 readExpr :: String -> String
